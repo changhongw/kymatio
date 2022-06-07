@@ -496,7 +496,8 @@ def calibrate_scattering_filters(J, Q, r_psi=math.sqrt(0.5), sigma0=0.1,
     of the scattering transform.
 
     These filterbanks share the same low-pass filterbank, but use a
-    different Q: Q_1 = Q and Q_2 = 1.
+    different Q: Q_1 = Q and Q_2 = 1 when Q is an integer; and
+    Q_1 = Q[0] and Q_2 = Q[1] when Q is a tuple
 
     The dictionaries for the band-pass filters have keys which are 2-tuples
     of the type (j, n), where n is an integer >=0 counting the filters (for
@@ -508,8 +509,11 @@ def calibrate_scattering_filters(J, Q, r_psi=math.sqrt(0.5), sigma0=0.1,
     ----------
     J : int
         maximal scale of the scattering (controls the number of wavelets)
-    Q : int
-        number of wavelets per octave for the first order
+    Q : int or tuple 
+        int: number of wavelets per octave for the first order Q_1 = Q. That 
+            for the second order Q_2 equals 1
+        tuple: number of wavelets per octave for the first and second order:
+            Q = (Q_1, Q_2). Q_1 = Q[0] and Q_2 = Q[1] are both integers
     r_psi : float, optional
         Should be >0 and <1. Controls the redundancy of the filters
         (the larger r_psi, the larger the overlap between adjacent wavelets).
@@ -540,12 +544,16 @@ def calibrate_scattering_filters(J, Q, r_psi=math.sqrt(0.5), sigma0=0.1,
         dictionary containing the frequential width of the second order
         filters. See above for a description of the keys.
     """
-    if Q < 1:
+    if np.any(np.array(Q) < 1):
         raise ValueError('Q should always be >= 1, got {}'.format(Q))
+    elif isinstance(Q, int):
+        Q[0] = Q
+        Q[1] = 1        
+    
     sigma_low = sigma0 / math.pow(2, J)  # width of the low pass
-    xi1, sigma1, j1 = compute_params_filterbank(sigma_low, Q, r_psi=r_psi,
+    xi1, sigma1, j1 = compute_params_filterbank(sigma_low, Q[0], r_psi=r_psi,
                                             alpha=alpha)
-    xi2, sigma2, j2 = compute_params_filterbank(sigma_low, 1, r_psi=r_psi,
+    xi2, sigma2, j2 = compute_params_filterbank(sigma_low, Q[1], r_psi=r_psi,
                                             alpha=alpha)
     return sigma_low, xi1, sigma1, j1, xi2, sigma2, j2
 
@@ -574,7 +582,12 @@ def scattering_filter_factory(J_support, J_scattering, Q, r_psi=math.sqrt(0.5),
     J_scattering : int
         parameter for the scattering transform (2**J_scattering
         corresponds to the averaging support of the low-pass filter)
-    Q : int
+    Q : int or tuple 
+        int: number of wavelets per octave for the first order Q_1 = Q. That 
+            for the second order Q_2 equals 1
+        tuple: number of wavelets per octave for the first and second order:
+            Q = (Q_1, Q_2). Q_1 = Q[0] and Q_2 = Q[1] are both integers
+            
         number of wavelets per octave at the first order. For audio signals,
         a value Q >= 12 is recommended in order to separate partials.
     r_psi : float, optional
